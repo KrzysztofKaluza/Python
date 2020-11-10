@@ -63,8 +63,8 @@ def sequential_model_creation(input_x, num_features):
     :return: model: configured Sequential model
     """
     model = Sequential()
-    model.add(LSTM(64, return_sequences=True, input_shape=(input_x, num_features)))
-    model.add(LSTM(64, return_sequences=False))
+    model.add(LSTM(180, return_sequences=True, input_shape=(input_x, num_features)))
+    model.add(LSTM(120, return_sequences=False))
     model.add(Dense(25))
     model.add(Dense(1))
     model.compile(optimizer='adam', loss='mean_squared_error')
@@ -157,7 +157,7 @@ def main():
     # Creating model
     model = sequential_model_creation(x_train.shape[1], x_train.shape[2])
 
-    model.fit(x_train, y_train, batch_size=1, epochs=1)
+    model.fit(x_train, y_train, batch_size=1, epochs=3)
 
     model.save_weights(path_to_models / (time_stamp+".h5"))
 
@@ -169,12 +169,13 @@ def main():
     rmse = np.square(np.mean(predictions - y_test) ** 2)
     print(rmse)
 
+    plot_data = stock_data2["^NDX"].filter(['Close'])[start_day:]
     # data = stock_data.filter(['Close'])
-    # train = data[:len(train_data)]
-    # valid = data[len(train_data):]
-    # valid['Predictions'] = predictions
+    train = plot_data[:train_data.shape[1]]
+    valid = plot_data[train_data.shape[1]:]
+    valid['Predictions'] = predictions
 
-    # plot_result(train, valid)
+    plot_result(train, valid)
 
 
 if __name__ == "__main__":

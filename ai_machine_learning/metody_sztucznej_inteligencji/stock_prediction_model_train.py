@@ -60,6 +60,7 @@ def sequential_model_creation(input_x, num_features):
     """
     Create a Keras Sequential
     :param input_x: integer, says how many elements in time series is
+    :param num_features, how many features
     :return: model: configured Sequential model
     """
     model = Sequential()
@@ -102,62 +103,32 @@ def main():
 
     # provide this same period for every company
     start_day = np.stack([val.first_valid_index() for key, val in stock_data2.items()]).max()
-    dataset2 = np.stack([extract_close_value(val[start_day:]) for key, val in stock_data2.items()])
-
+    dataset = np.stack([extract_close_value(val[start_day:]) for key, val in stock_data2.items()])
+    dataset = dataset[:, :, 0].transpose(1, 0)
     scaler = MinMaxScaler()
-    scaled_data = np.array([scaler.fit_transform(data) for data in dataset2])
-    division_point = math.floor(scaled_data.shape[1] * PERCENTAGE)
-    train_data = scaled_data[:, :division_point, :]
-    test_data = scaled_data[:, (division_point-60):, :]
+    scaled_data = scaler.fit_transform(dataset)
 
-    inputs_train = train_data[:12]
-    output_train = train_data[12]
+    division_point = math.floor(scaled_data.shape[0] * PERCENTAGE)
 
-    inputs_test = test_data[:12]
-    output_test = test_data[12]
+    input_data = scaled_data[:, :12]
+    output_data = scaled_data[:, 12]
 
-    x_train = np.array([[company[i - 60:i, 0] for i in range(60, len(company))] for company in inputs_train])
-    y_train = np.array([output_train[i, 0] for i in range(60, len(output_train))])
+    input_train = input_data[:division_point, :]
+    input_test = input_data[(division_point-60):, :]
 
-    x_test = np.array([[company[i - 60:i, 0] for i in range(60, len(company))] for company in inputs_test])
-    y_test = np.array([output_test[i, 0] for i in range(60, len(output_test))])
+    output_train = output_data[:division_point]
+    output_test = output_data[(division_point - 60):]
 
-    x_train = x_train.transpose([1, 2, 0])
-    x_test = x_test.transpose([1, 2, 0])
+    x_train = np.array([input_train[index-60:index, :] for index in range(60, len(input_train))])
+    x_test = np.array([input_test[index-60:index, :] for index in range(60, len(input_test))])
 
-
-    ##########################################################################
-    # stock_data = get_stock_data('AAPL', ('2012-01-01', datetime.now().strftime("%Y-%m-%d")))
-    # dataset = extract_close_value(stock_data)
-    # """
-    #     add joblib.dump on data to restore them in prediction
-    # """
-    # # Normalisation
-    # scaler = MinMaxScaler()
-    # scaled_data = scaler.fit_transform(dataset)
-    #
-    # # Training data
-    # train_data, test_data = data_division(scaled_data, PERCENTAGE)
-    #
-    # # Generating 60 days samples with possible prediction on next day for NN
-    # # Train -> time series data
-    # x_train = [train_data[i - 60:i, 0] for i in range(60, len(train_data))]
-    # # Train -> day after 60 days sample
-    # y_train = [train_data[i, 0] for i in range(60, len(train_data))]
-    # # Test -> time series data
-    # x_test = [test_data[i - 60:i, 0] for i in range(60, len(test_data))]
-    # # Test -> day after 60 days sample
-    # y_test = dataset[len(train_data):, :]
-    #
-    # # Some Reshapes
-    # x_train, y_train, x_test = np.array(x_train), np.array(y_train), np.array(x_test)
-    # x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
-    # x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
+    y_train = np.array([output_train[index-60:index] for index in range(60, len(output_train))])
+    y_test = np.array([output_test[index-60:index] for index in range(60, len(output_test))])
 
     # Creating model
     model = sequential_model_creation(x_train.shape[1], x_train.shape[2])
 
-    model.fit(x_train, y_train, batch_size=1, epochs=3)
+    model.fit(x_train, y_train, batch_size=1, epochs=1)
 
     model.save_weights(path_to_models / (time_stamp+".h5"))
 

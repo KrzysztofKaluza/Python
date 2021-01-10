@@ -7,17 +7,26 @@ from datetime import datetime
 
 
 def load_model(model_name):
-    model = sequential_model_creation(60)
+    model = sequential_model_creation(60, 12)
     model.load_weights(Path(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'models', model_name)))
     return model
 
+def main():
+    company_name_shorts = ["AAPL", "AMZN", "FB", "MSFT", "GOOG", "GOOGL", "CSCO", "INTC", "CMCSA", "PEP", "NFLX",
+                           "ADBE", "^NDX"]
+    stock_data = {company: get_stock_data(company, ('2012-01-01', datetime.now().strftime("%Y-%m-%d"))) for
+                   company in company_name_shorts}
+    start_day = np.stack([val.first_valid_index() for key, val in stock_data.items()]).max()
+    dataset = np.stack([extract_close_value(val[start_day:]) for key, val in stock_data.items()])
+
+    input_data = dataset[:12]
+    output_data = dataset[12]
+
+    x_test = input_data[:,-61:-1]
+    x_test = x_test.transpose(2, 1, 0)
+    model = load_model("2020_11_24_15h24m59s.h5")
+    predictions = model.predict(x_test)
 
 if __name__ == "__main__":
-    stock_data = get_stock_data('AAPL', ('2012-01-01', datetime.now().strftime("%Y-%m-%d")))
-    dataset = extract_close_value(stock_data)
-    test_data = dataset[(len(dataset)-62):]
-    x_test = np.array([test_data[i - 60:i, 0] for i in range(60, len(test_data))])
-    x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
-    model = load_model("2020_10_18_06h45m54s.h5")
-    predictions = model.predict(x_test)
+    main()
     pass
